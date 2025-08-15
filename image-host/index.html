@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Image Host</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .drop-zone-active {
+            border-color: #2563eb;
+            background-color: #1e3a8a;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-2xl mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold mb-2">Your Personal Image Host</h1>
+            <p class="text-gray-400">Upload images, get shareable links instantly.</p>
+        </header>
+
+        <main class="bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-8">
+            <!-- Drop Zone and File Input -->
+            <div id="drop-zone" class="border-4 border-dashed border-gray-600 rounded-xl p-8 text-center cursor-pointer transition-all duration-300 hover:border-blue-500 hover:bg-gray-700">
+                <input type="file" id="file-input" class="hidden" accept="image/png, image/jpeg, image/gif">
+                <div class="flex flex-col items-center">
+                    <svg class="w-16 h-16 text-gray-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                    </svg>
+                    <p class="text-lg font-semibold">Drag & drop your image here</p>
+                    <p class="text-gray-400 mt-1">or <span class="text-blue-400 font-medium">click to browse</span></p>
+                </div>
+            </div>
+
+            <!-- Image Preview Section -->
+            <div id="preview-container" class="hidden mt-6 text-center">
+                <img id="image-preview" src="#" alt="Image preview" class="max-w-full max-h-64 mx-auto rounded-lg shadow-lg">
+                <p id="file-name" class="mt-2 text-sm text-gray-400"></p>
+                <button id="upload-btn" class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-transform duration-200 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-800">
+                    Upload Image
+                </button>
+                 <button id="cancel-btn" class="mt-2 w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200">
+                    Cancel
+                </button>
+            </div>
+
+            <!-- Loading Spinner -->
+            <div id="loading-spinner" class="hidden mt-6 flex justify-center items-center">
+                 <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400"></div>
+            </div>
+
+            <!-- Result Section -->
+            <div id="result-container" class="hidden mt-6">
+                <p class="text-green-400 font-semibold text-center mb-4">🎉 Success! Your image is ready.</p>
+                <label for="image-url" class="block text-sm font-medium text-gray-300 mb-1">Shareable Link:</label>
+                <div class="flex items-center space-x-2">
+                    <input type="text" id="image-url" readonly class="w-full bg-gray-900 text-gray-200 border border-gray-700 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button id="copy-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-transform duration-200 transform hover:scale-105">
+                        Copy
+                    </button>
+                </div>
+                 <button id="upload-another-btn" class="mt-4 w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200">
+                    Upload Another
+                </button>
+            </div>
+        </main>
+
+        <!-- Gallery Section -->
+        <section class="mt-12">
+            <h2 class="text-2xl font-bold text-center mb-6">Recently Uploaded</h2>
+            <div id="gallery" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                <!-- Uploaded images will be added here -->
+                <p id="gallery-placeholder" class="col-span-full text-center text-gray-500">No images uploaded yet.</p>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const previewContainer = document.getElementById('preview-container');
+        const imagePreview = document.getElementById('image-preview');
+        const fileNameDisplay = document.getElementById('file-name');
+        const uploadBtn = document.getElementById('upload-btn');
+        const cancelBtn = document.getElementById('cancel-btn');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const resultContainer = document.getElementById('result-container');
+        const imageUrlInput = document.getElementById('image-url');
+        const copyBtn = document.getElementById('copy-btn');
+        const uploadAnotherBtn = document.getElementById('upload-another-btn');
+        const gallery = document.getElementById('gallery');
+        const galleryPlaceholder = document.getElementById('gallery-placeholder');
+
+        let selectedFile = null;
+
+        // --- Event Listeners ---
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) handleFile(fileInput.files[0]);
+        });
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drop-zone-active');
+        });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drop-zone-active'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drop-zone-active');
+            if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
+        });
+        uploadBtn.addEventListener('click', () => {
+            if (selectedFile) uploadImage(selectedFile);
+        });
+        cancelBtn.addEventListener('click', resetToInitialState);
+        uploadAnotherBtn.addEventListener('click', resetToInitialState);
+        copyBtn.addEventListener('click', () => {
+            imageUrlInput.select();
+            try {
+                document.execCommand('copy');
+                copyBtn.textContent = 'Copied!';
+                setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
+            } catch (err) {
+                console.error('Failed to copy text: ', err);
+            }
+        });
+
+        // --- Core Functions ---
+        function handleFile(file) {
+            if (!file.type.startsWith('image/')) {
+                alert('Please select an image file.');
+                return;
+            }
+            selectedFile = file;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                imagePreview.src = e.target.result;
+                fileNameDisplay.textContent = file.name;
+                dropZone.classList.add('hidden');
+                previewContainer.classList.remove('hidden');
+                resultContainer.classList.add('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function uploadImage(file) {
+            previewContainer.classList.add('hidden');
+            loadingSpinner.classList.remove('hidden');
+
+            const formData = new FormData();
+            formData.append('image', file);
+            
+            // This URL will point to our server. We will replace it later.
+            // For now, it points to the upload endpoint on the same server.
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.json();
+            })
+            .then(data => {
+                showResult(data.url);
+                addToGallery(imagePreview.src, data.url);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Upload failed. Please try again.');
+                resetToInitialState();
+            });
+        }
+
+        function showResult(url) {
+            loadingSpinner.classList.add('hidden');
+            resultContainer.classList.remove('hidden');
+            imageUrlInput.value = url;
+        }
+
+        function resetToInitialState() {
+            selectedFile = null;
+            fileInput.value = '';
+            previewContainer.classList.add('hidden');
+            resultContainer.classList.add('hidden');
+            loadingSpinner.classList.add('hidden');
+            dropZone.classList.remove('hidden');
+        }
+
+        function addToGallery(imageSrc, imageUrl) {
+            if (galleryPlaceholder) galleryPlaceholder.remove();
+            const galleryItem = document.createElement('a');
+            galleryItem.href = imageUrl;
+            galleryItem.target = '_blank';
+            galleryItem.rel = 'noopener noreferrer';
+            galleryItem.className = 'block rounded-lg overflow-hidden shadow-lg transform transition-transform duration-300 hover:scale-105';
+            const img = document.createElement('img');
+            img.src = imageSrc;
+            img.alt = 'Uploaded Image';
+            img.className = 'w-full h-full object-cover';
+            galleryItem.appendChild(img);
+            gallery.prepend(galleryItem);
+        }
+    </script>
+</body>
+</html>
